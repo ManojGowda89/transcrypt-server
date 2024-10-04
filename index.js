@@ -38,7 +38,7 @@ function decrypt(text) {
 // Rate limiters
 const walletRateLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes window
-    max: 8, 
+    max: 100, 
     message: { message: 'Too many requests from this IP, please try again later.' },
     headers: true,
     keyGenerator: (req) => req.ip,
