@@ -141,7 +141,9 @@ function generateWalletAddress(cryptoType) {
     
     return { network, address };
 }
-
+app.get("/",(req,res)=>{
+    res.send("https://transcrypto.onrender.com/")
+})
 // Route 1: Accept crypto and email, return encrypted string
 app.post('/generate-publicKey',walletRateLimiter,minuteRateLimiter, (req, res) => {
     const { cryptoType, email } = req.body;
