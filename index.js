@@ -1,24 +1,40 @@
 const express = require('express');
-const app = express();
-const cors = require('cors')
-const connectDB = require("mb64-connect");
-const morgan = require("morgan")
-require("dotenv").config()
 const port = 5003;
-
-const {walletRateLimiter,minuteRateLimiter} = require("./rateLimiter.js")
-const generateWalletAddress=require("./main.js")
-const {encrypt,decrypt} =require("./crypt.js")
-
-
+const cors = require('cors')
+const crypto = require('crypto');
+const bs58 = require('bs58');
+const secp256k1 = require('secp256k1');
+const ethUtil = require('ethereumjs-util');  
+const { Keypair, PublicKey } = require('@solana/web3.js');
+const rateLimit = require('express-rate-limit');
+const morgan = require("morgan")
+const app = express();
 app.use(express.json());  // Middleware to parse JSON body
 app.use(morgan("dev"))
 app.use(cors())
+ 
+// Encryption and decryption helper functions
+const ENCRYPTION_KEY = crypto.randomBytes(32);  // Use a strong random key for encryption
+const IV_LENGTH = 16;  // For AES, this is the block size
 
-connectDB(process.env.BASE_uri);
+function encrypt(text) {
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
 
+function decrypt(text) {
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+}
 
-<<<<<<< Updated upstream
 // Rate limiters
 const walletRateLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes window
@@ -129,14 +145,6 @@ app.get("/",(req,res)=>{
     res.send("https://transcrypto.onrender.com/")
 })
 // Route 1: Accept crypto and email, return encrypted string
-=======
-app.get("/",(req,res)=>{
-    res.send("https://transcrypto.onrender.com/")
-})
-
-
-
->>>>>>> Stashed changes
 app.post('/generate-publicKey',walletRateLimiter,minuteRateLimiter, (req, res) => {
     const { cryptoType, email } = req.body;
     
@@ -150,7 +158,7 @@ app.post('/generate-publicKey',walletRateLimiter,minuteRateLimiter, (req, res) =
     res.json({ PublicKey: encryptedData });
 });
 
-
+// Route 2: Accept encrypted string, decrypt it, generate wallet, and return encrypted wallet
 app.post('/generate-privateKey', walletRateLimiter, minuteRateLimiter, (req, res) => {
     const {PublicKey: encryptedString } = req.body;
 
@@ -174,8 +182,8 @@ app.post('/generate-privateKey', walletRateLimiter, minuteRateLimiter, (req, res
     }
 });
 
-
-app.post('/get-your-wallet',walletRateLimiter,minuteRateLimiter, (req, res) => {
+// Route 3: Decrypt wallet address
+app.post('/get-your-wallet', (req, res) => {
     const {PrivateKey: encryptedWallet, PublicKey:encryptedString } = req.body;
 
     if (!encryptedWallet || !encryptedString) {
@@ -192,8 +200,6 @@ app.post('/get-your-wallet',walletRateLimiter,minuteRateLimiter, (req, res) => {
         res.status(400).json({ message: 'Invalid encrypted data.' });
     }
 });
-
-
 app.get('/supported-cryptocurrencies', (req, res) => {
     const supportedCryptocurrencies = [
         { cryptoType: 'BTC', network: 'Bitcoin Network' },
