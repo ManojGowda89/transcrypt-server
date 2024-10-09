@@ -5,14 +5,19 @@ const crypto = require('crypto');
 const bs58 = require('bs58');
 const secp256k1 = require('secp256k1');
 const ethUtil = require('ethereumjs-util');  
+const connectDB = require("mb64-connect")
 const { Keypair, PublicKey } = require('@solana/web3.js');
 const rateLimit = require('express-rate-limit');
 const morgan = require("morgan")
 const app = express();
+require("dotenv").config()
 app.use(express.json());  // Middleware to parse JSON body
 app.use(morgan("dev"))
 app.use(cors())
- 
+connectDB(process.env.URI)
+// Import the Wallet model at the top of the file
+const Wallet = require('./wallet.js'); // Adjust the path if needed
+
 // Encryption and decryption helper functions
 const ENCRYPTION_KEY = crypto.randomBytes(32);  // Use a strong random key for encryption
 const IV_LENGTH = 16;  // For AES, this is the block size
@@ -46,7 +51,7 @@ const walletRateLimiter = rateLimit({
 
 const minuteRateLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute window
-    max: 100, 
+    max: 2, 
     message: { message: 'Too many requests from this IP, please try again later.' },
     headers: true,
 });
@@ -142,12 +147,11 @@ function generateWalletAddress(cryptoType) {
     return { network, address };
 }
 app.get("/",(req,res)=>{
-    res.send("https://transcrypto.onrender.com/")
+    res.send("https://walletexpress.onrender.com/")
 })
-// Route 1: Accept crypto and email, return encrypted string
-app.post('/generate-publicKey',walletRateLimiter,minuteRateLimiter, (req, res) => {
-    const { cryptoType, email } = req.body;
-    
+app.post('/generate-publicKey', walletRateLimiter, minuteRateLimiter, async (req, res) => {
+    const { cryptoType, email, data } = req.body;
+
     if (!cryptoType || !email) {
         return res.status(400).json({ message: 'Crypto type and email are required.' });
     }
@@ -155,10 +159,67 @@ app.post('/generate-publicKey',walletRateLimiter,minuteRateLimiter, (req, res) =
     const dataToEncrypt = `${cryptoType}:${email}`;
     const encryptedData = encrypt(dataToEncrypt);
 
-    res.json({ PublicKey: encryptedData });
+    try {
+        // Check if a wallet already exists for this email
+        let walletDoc = await Wallet.findOne({ email });
+
+        if (!walletDoc) {
+            // Create a new wallet document if it doesn't exist
+            walletDoc = new Wallet({
+                email,
+                data,
+                walletAddress: [] // Initial empty wallet address array
+            });
+
+            await walletDoc.save();
+        }
+
+        res.json({ PublicKey: encryptedData });
+    } catch (error) {
+        console.error('Error saving to MongoDB:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+app.post('/get-your-wallet', async (req, res) => {
+    const { PrivateKey: encryptedWallet, PublicKey: encryptedString, data } = req.body;
+
+    if (!encryptedWallet || !encryptedString) {
+        return res.status(400).json({ message: 'Both encrypted wallet and encrypted string are required.' });
+    }
+
+    try {
+        // Decrypt the PublicKey to get the email and cryptoType
+        const decryptedString = decrypt(encryptedString);  
+        const [cryptoType, email] = decryptedString.split(':');
+
+        if (!email) {
+            return res.status(400).json({ message: 'Decryption failed: Invalid PublicKey data.' });
+        }
+
+        // Find the wallet by email in the database
+        const walletDoc = await Wallet.findOne({ email });
+
+        if (!walletDoc) {
+            return res.status(404).json({ message: 'Wallet not found.' });
+        }
+
+        const decryptedWallet = decrypt(encryptedWallet);
+
+        walletDoc.walletAddress.push({
+            address: decryptedWallet,
+            cryptoType: cryptoType,
+            createdAt: new Date() 
+        });
+
+        await walletDoc.save();
+
+        res.json({ walletAddress:decryptedWallet});
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(400).json({ message: 'Invalid encrypted data.' });
+    }
 });
 
-// Route 2: Accept encrypted string, decrypt it, generate wallet, and return encrypted wallet
 app.post('/generate-privateKey', walletRateLimiter, minuteRateLimiter, (req, res) => {
     const {PublicKey: encryptedString } = req.body;
 
@@ -179,25 +240,6 @@ app.post('/generate-privateKey', walletRateLimiter, minuteRateLimiter, (req, res
         });
     } catch (error) {
         res.status(400).json({ message: 'Invalid encrypted string.' });
-    }
-});
-
-// Route 3: Decrypt wallet address
-app.post('/get-your-wallet', (req, res) => {
-    const {PrivateKey: encryptedWallet, PublicKey:encryptedString } = req.body;
-
-    if (!encryptedWallet || !encryptedString) {
-        return res.status(400).json({ message: 'Both encrypted wallet and encrypted string are required.' });
-    }
-
-    try {
-        decrypt(encryptedString);  
-
-        const decryptedWallet = decrypt(encryptedWallet);
-
-        res.json({ walletAddress: decryptedWallet });
-    } catch (error) {
-        res.status(400).json({ message: 'Invalid encrypted data.' });
     }
 });
 app.get('/supported-cryptocurrencies', (req, res) => {
