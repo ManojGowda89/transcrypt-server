@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "@solana/web3.js": "^1.95.3",
+    "axios": "^1.7.7",
     "bs58": "^4.0.1",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",

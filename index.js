@@ -9,6 +9,7 @@ const connectDB = require("mb64-connect")
 const { Keypair, PublicKey } = require('@solana/web3.js');
 const rateLimit = require('express-rate-limit');
 const morgan = require("morgan")
+const axios= require("axios")
 const app = express();
 require("dotenv").config()
 app.use(express.json());  // Middleware to parse JSON body
@@ -51,7 +52,7 @@ const walletRateLimiter = rateLimit({
 
 const minuteRateLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute window
-    max: 2, 
+    max: 100, 
     message: { message: 'Too many requests from this IP, please try again later.' },
     headers: true,
 });
@@ -150,24 +151,25 @@ app.get("/",(req,res)=>{
     res.send("https://walletexpress.onrender.com/")
 })
 app.post('/generate-publicKey', walletRateLimiter, minuteRateLimiter, async (req, res) => {
-    const { cryptoType, email, data } = req.body;
-
-    if (!cryptoType || !email) {
-        return res.status(400).json({ message: 'Crypto type and email are required.' });
+    const { cryptoType, email, data, ip } = req.body;
+    
+    if (!cryptoType || !email || !ip) {
+        return res.status(400).json({ message: 'Crypto type, email, and IP are required.' });
     }
 
     const dataToEncrypt = `${cryptoType}:${email}`;
     const encryptedData = encrypt(dataToEncrypt);
 
     try {
-        // Check if a wallet already exists for this email
-        let walletDoc = await Wallet.findOne({ email });
+        // Check if a wallet already exists for this email and IP
+        let walletDoc = await Wallet.findOne({ email, ip });
 
         if (!walletDoc) {
             // Create a new wallet document if it doesn't exist
             walletDoc = new Wallet({
                 email,
                 data,
+                ip, // Store the IP address
                 walletAddress: [] // Initial empty wallet address array
             });
 
@@ -180,6 +182,7 @@ app.post('/generate-publicKey', walletRateLimiter, minuteRateLimiter, async (req
         res.status(500).json({ message: 'Server error' });
     }
 });
+
 app.post('/get-your-wallet', async (req, res) => {
     const { PrivateKey: encryptedWallet, PublicKey: encryptedString, data } = req.body;
 
@@ -255,7 +258,46 @@ app.get('/supported-cryptocurrencies', (req, res) => {
 
     res.json(supportedCryptocurrencies);
 });
-// Start the Express server
+
+app.get("/ip/:ip", async (req, res) => {
+    try {
+        const ip = req.params.ip; 
+        console.log(`IP Address: ${ip}`);
+        const ipResponse = await axios.get(`https://ipinfo.io/widget/demo/${ip}`)
+        res.json(ipResponse.data);
+
+    } catch (error) {
+        res.status(500).json({ error: "Error retrieving IP information." });
+    }
+});
+
+app.get('/get-location/:latitude/:longitude', async (req, res) => {
+    const { latitude, longitude } = req.params;
+console.log(latitude,longitude)
+    if (!latitude || !longitude) {
+        return res.status(400).json({ message: 'Latitude and longitude are required in the URL.' });
+    }
+
+    try {
+
+        const locationResponse = await axios.get("https://api.opencagedata.com/geocode/v1/json", {
+            params: {
+                q: `${latitude}+${longitude}`,
+                key: process.env.OPENCAGE_API_KEY, // Make sure this key is defined in your environment variables
+                no_annotations: '1',
+                language: 'en'
+            }
+        });
+        
+
+        // Check if the API returned a result
+      res.send(locationResponse.data)
+    } catch (error) {
+        console.error('Error fetching location:', error);
+        res.status(500).json({ message: 'Server error while fetching location data.' });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });

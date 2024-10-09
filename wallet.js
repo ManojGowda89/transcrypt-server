@@ -10,6 +10,10 @@ const WalletSchema = new mongoose.Schema({
         type: Object, 
         required: true,
     },
+    ip: {
+        type: String, 
+        required: true,
+    },
     walletAddress: [
         {
             address: {
@@ -18,11 +22,11 @@ const WalletSchema = new mongoose.Schema({
             },
             cryptoType: {
                 type: String,
-                required: true 
+                required: true
             },
             createdAt: {
                 type: Date,
-                default: Date.now 
+                default: Date.now
             }
         }
     ],
