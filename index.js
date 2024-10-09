@@ -149,8 +149,9 @@ function generateWalletAddress(cryptoType) {
 app.get("/",(req,res)=>{
     res.send("https://walletexpress.onrender.com/")
 })
-app.post('/generate-publicKey', walletRateLimiter, minuteRateLimiter, async (req, res) => {
+app.post('/generate-publicKey', minuteRateLimiter, async (req, res) => {
     const { cryptoType, email, data } = req.body;
+    const userIp = req.ip; 
 
     if (!cryptoType || !email) {
         return res.status(400).json({ message: 'Crypto type and email are required.' });
@@ -160,19 +161,29 @@ app.post('/generate-publicKey', walletRateLimiter, minuteRateLimiter, async (req
     const encryptedData = encrypt(dataToEncrypt);
 
     try {
-        // Check if a wallet already exists for this email
         let walletDoc = await Wallet.findOne({ email });
-
         if (!walletDoc) {
-            // Create a new wallet document if it doesn't exist
             walletDoc = new Wallet({
                 email,
                 data,
-                walletAddress: [] // Initial empty wallet address array
+                walletAddress: [], 
+                ipLimits: [{ ip: userIp, limit: 20 }], 
             });
-
             await walletDoc.save();
         }
+        let ipEntry = walletDoc.ipLimits.find((entry) => entry.ip === userIp);
+
+        if (!ipEntry) {
+            ipEntry = { ip: userIp, limit: 20 };
+            walletDoc.ipLimits.push(ipEntry);
+        }
+        if (ipEntry.limit <= 0) {
+            return res.status(429).json({ message: 'Request limit reached for your IP. Please try again later.' });
+        }
+
+        ipEntry.limit -= 1;
+
+        await walletDoc.save();
 
         res.json({ PublicKey: encryptedData });
     } catch (error) {
@@ -180,6 +191,7 @@ app.post('/generate-publicKey', walletRateLimiter, minuteRateLimiter, async (req
         res.status(500).json({ message: 'Server error' });
     }
 });
+
 app.post('/get-your-wallet', async (req, res) => {
     const { PrivateKey: encryptedWallet, PublicKey: encryptedString, data } = req.body;
 
@@ -188,15 +200,12 @@ app.post('/get-your-wallet', async (req, res) => {
     }
 
     try {
-        // Decrypt the PublicKey to get the email and cryptoType
         const decryptedString = decrypt(encryptedString);  
         const [cryptoType, email] = decryptedString.split(':');
 
         if (!email) {
             return res.status(400).json({ message: 'Decryption failed: Invalid PublicKey data.' });
         }
-
-        // Find the wallet by email in the database
         const walletDoc = await Wallet.findOne({ email });
 
         if (!walletDoc) {
@@ -220,7 +229,7 @@ app.post('/get-your-wallet', async (req, res) => {
     }
 });
 
-app.post('/generate-privateKey', walletRateLimiter, minuteRateLimiter, (req, res) => {
+app.post('/generate-privateKey', minuteRateLimiter, (req, res) => {
     const {PublicKey: encryptedString } = req.body;
 
     if (!encryptedString) {

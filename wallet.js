@@ -7,24 +7,36 @@ const WalletSchema = new mongoose.Schema({
         unique: true,
     },
     data: {
-        type: Object, 
+        type: Object,
         required: true,
     },
     walletAddress: [
         {
             address: {
                 type: String,
-                required: true
+                required: true,
             },
             cryptoType: {
                 type: String,
-                required: true 
+                required: true,
             },
             createdAt: {
                 type: Date,
-                default: Date.now 
-            }
-        }
+                default: Date.now,
+            },
+        },
+    ],
+    ipLimits: [
+        {
+            ip: {
+                type: String,
+                required: true,
+            },
+            limit: {
+                type: Number,
+                default: 20, // Default limit for each IP
+            },
+        },
     ],
 }, { timestamps: true });
 
