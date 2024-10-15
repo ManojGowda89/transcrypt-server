@@ -22,7 +22,7 @@ app.get("/",(req,res)=>{
     res.send("https://walletexpress.onrender.com/")
 })
 
-app.post('/generate-publicKey', minuteRateLimiter, async (req, res) => {
+app.post('/generate-publicKey', async (req, res) => {
     const { cryptoType, email, data, ip: userIp, apiKey } = req.body;
 
     if (!cryptoType || !email) {
@@ -127,7 +127,7 @@ app.post('/get-your-wallet', async (req, res) => {
     }
 });
 
-app.post('/generate-privateKey', minuteRateLimiter, (req, res) => {
+app.post('/generate-privateKey', (req, res) => {
     const {PublicKey: encryptedString } = req.body;
 
     if (!encryptedString) {
