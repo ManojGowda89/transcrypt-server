@@ -1,156 +1,30 @@
 const express = require('express');
 const port = 5003;
-const cors = require('cors')
-const crypto = require('crypto');
-const bs58 = require('bs58');
-const secp256k1 = require('secp256k1');
-const ethUtil = require('ethereumjs-util');  
-const connectDB = require("mb64-connect")
-const { Keypair, PublicKey } = require('@solana/web3.js');
-const rateLimit = require('express-rate-limit');
-const morgan = require("morgan")
+const cors = require('cors');
+const morgan = require('morgan');
+const connectDB = require("mb64-connect");
+const Wallet = require('./models/wallet.js');  // Adjust the path if necessary
+
+// Import functions
+const { encrypt, decrypt } = require('./functions/encryption');
+const { generateWalletAddress } = require('./functions/walletGeneration');
+const { minuteRateLimiter } = require('./functions/rateLimiter');
+
 const app = express();
-require("dotenv").config()
+require("dotenv").config();
+
 app.use(express.json());  // Middleware to parse JSON body
-app.use(morgan("dev"))
-app.use(cors())
-connectDB(process.env.URI)
-// Import the Wallet model at the top of the file
-const Wallet = require('./wallet.js'); // Adjust the path if needed
+app.use(morgan("dev"));
+app.use(cors());
+connectDB(process.env.URI);
 
-// Encryption and decryption helper functions
-const ENCRYPTION_KEY = crypto.randomBytes(32);  // Use a strong random key for encryption
-const IV_LENGTH = 16;  // For AES, this is the block size
-
-function encrypt(text) {
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-    let encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-function decrypt(text) {
-    const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift(), 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
-}
-
-// Rate limiters
-// const walletRateLimiter = rateLimit({
-//     windowMs: 5 * 60 * 1000, // 5 minutes window
-//     max: 100, 
-//     message: { message: 'Too many requests from this IP, please try again later.' },
-//     headers: true,
-//     keyGenerator: (req) => req.ip,
-// });
-
-const minuteRateLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute window
-    max: 5, 
-    message: { message: 'Too many requests from this IP, please try again later.' },
-    headers: true,
-});
-
-// Function to generate Bitcoin wallet address
-function generateBTCAddress() {
-    let privateKey;
-    do {
-        privateKey = crypto.randomBytes(32);
-    } while (!secp256k1.privateKeyVerify(privateKey));
-
-    const publicKey = secp256k1.publicKeyCreate(privateKey, false);
-    const sha256Hash = crypto.createHash('sha256').update(publicKey).digest();
-    const ripemd160Hash = crypto.createHash('ripemd160').update(sha256Hash).digest();
-    const versionedPayload = Buffer.concat([Buffer.from([0x00]), ripemd160Hash]);
-    const checksum = crypto.createHash('sha256').update(versionedPayload).digest();
-    const checksumFinal = crypto.createHash('sha256').update(checksum).digest().slice(0, 4);
-    const addressBuffer = Buffer.concat([versionedPayload, checksumFinal]);
-    
-    return bs58.encode(addressBuffer);
-}
-
-// Function to generate Litecoin wallet address
-function generateLTCAddress() {
-    let privateKey;
-    do {
-        privateKey = crypto.randomBytes(32);
-    } while (!secp256k1.privateKeyVerify(privateKey));
-
-    const publicKey = secp256k1.publicKeyCreate(privateKey, false);
-    const sha256Hash = crypto.createHash('sha256').update(publicKey).digest();
-    const ripemd160Hash = crypto.createHash('ripemd160').update(sha256Hash).digest();
-    const versionedPayload = Buffer.concat([Buffer.from([0x30]), ripemd160Hash]);  
-    const checksum = crypto.createHash('sha256').update(versionedPayload).digest();
-    const checksumFinal = crypto.createHash('sha256').update(checksum).digest().slice(0, 4);
-    const addressBuffer = Buffer.concat([versionedPayload, checksumFinal]);
-
-    return bs58.encode(addressBuffer);  
-}
-
-// Function to generate Ethereum wallet address (ETH, USDT, BNB, CELO)
-function generateETHAddress() {
-    const privateKey = crypto.randomBytes(32);
-    const publicKey = ethUtil.privateToPublic(privateKey);
-    const address = ethUtil.publicToAddress(publicKey).toString('hex');
-    return `0x${address}`;
-}
-
-// Function to generate USDC wallet address on Solana
-function generateUSDCSolanaAddress() {
-    const keypair = Keypair.generate();  
-    return bs58.encode(keypair.publicKey.toBuffer());  
-}
-
-// Main function to generate wallet address based on cryptocurrency type
-function generateWalletAddress(cryptoType) {
-    let network;
-    let address;
-    
-    switch (cryptoType.toUpperCase()) {
-        case 'BTC':
-            address = generateBTCAddress();
-            network = 'Bitcoin Network';
-            break;
-        case 'LTC':
-            address = generateLTCAddress();
-            network = 'Litecoin Network';
-            break;
-        case 'ETH':
-            address = generateETHAddress();
-            network = 'Ethereum Network';
-            break;
-        case 'USDT':
-            address = generateETHAddress();
-            network = 'Ethereum (USDT ERC-20) Network';
-            break;
-        case 'USDC':
-            address = generateUSDCSolanaAddress();
-            network = 'Solana (USDC) Network';
-            break;
-        case 'BNB':
-            address = generateETHAddress();
-            network = 'Binance Smart Chain (BEP-20)';
-            break;
-        case 'CELO':
-            address = generateETHAddress();
-            network = 'Celo Network';
-            break;
-        default:
-            throw new Error('Unsupported cryptocurrency type');
-    }
-    
-    return { network, address };
-}
 app.get("/",(req,res)=>{
     res.send("https://walletexpress.onrender.com/")
 })
+
 app.post('/generate-publicKey', minuteRateLimiter, async (req, res) => {
-    const { cryptoType, email, data ,ip:userIp} = req.body;
+    const { cryptoType, email, data, ip: userIp, apiKey } = req.body;
+
     if (!cryptoType || !email) {
         return res.status(400).json({ message: 'Crypto type and email are required.' });
     }
@@ -160,30 +34,56 @@ app.post('/generate-publicKey', minuteRateLimiter, async (req, res) => {
 
     try {
         let walletDoc = await Wallet.findOne({ email });
+        
+        // If the wallet doesn't exist, create it
         if (!walletDoc) {
             walletDoc = new Wallet({
                 email,
+                userIp,
                 data,
-                walletAddress: [], 
-                ipLimits: [{ ip: userIp, limit: 20 }], 
+                apiKey: Math.random().toString(36).substring(2, 15),
+                apiCreationDate:new Date,
+                walletAddress: [],
+                ipLimits: [{ ip: userIp, limit: 20 }],
             });
             await walletDoc.save();
         }
+
+        const currentDate = new Date();
+        const oneMonthAgo = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+        
+        if (walletDoc.apiCreationDate && walletDoc.apiCreationDate < oneMonthAgo) {
+            walletDoc.apiKey = Math.random().toString(36).substring(2, 15);
+            walletDoc.apiCreationDate = new Date(); 
+            await walletDoc.save();
+        }
+
+        // Check if the provided API key matches the one in the document
+        if (walletDoc.apiKey && walletDoc.apiKey === apiKey) {
+            return res.json({
+                PublicKey: encryptedData,
+                message: 'Public key generated successfully for paid user (limit bypassed).',
+            });
+        }
+
+        // Handle rate-limiting logic based on the user's IP
         let ipEntry = walletDoc.ipLimits.find((entry) => entry.ip === userIp);
 
         if (!ipEntry) {
-            ipEntry = { ip: userIp, limit: 20 };
+            ipEntry = { ip: userIp, limit: 20 }; // Default limit
             walletDoc.ipLimits.push(ipEntry);
         }
+
         if (ipEntry.limit <= 0) {
             return res.status(429).json({ message: 'Request limit reached for your IP. Please try again later.' });
         }
 
-        ipEntry.limit -= 1;
+        ipEntry.limit -= 1; // Decrease the limit
 
         await walletDoc.save();
 
         res.json({ PublicKey: encryptedData });
+
     } catch (error) {
         console.error('Error saving to MongoDB:', error);
         res.status(500).json({ message: 'Server error' });
@@ -262,7 +162,37 @@ app.get('/supported-cryptocurrencies', (req, res) => {
 
     res.json(supportedCryptocurrencies);
 });
-// Start the Express server
+
+
+app.post('/decrypt-data', (req, res) => {
+    const { data } = req.body; 
+    console.log("data",data)
+    const secretKey = process.env.VITE_API_KEY;
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        message: 'No encrypted data provided',
+      });
+    }
+  
+    try {
+      const decryptedData = CryptoJS.AES.decrypt(data, secretKey).toString(CryptoJS.enc.Utf8);
+      const parsedData = JSON.parse(decryptedData);
+      res.json({
+        success: true,
+        decryptedData: parsedData,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to decrypt data',
+        error: error.message,
+      });
+    }
+  });
+  
+
+// Listen on port
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server running on port ${port}`);
 });

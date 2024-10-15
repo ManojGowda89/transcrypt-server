@@ -6,8 +6,19 @@ const WalletSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    apiKey: {
+        type: String,
+    },
+    apiCreationDate: {
+        type: Date,
+        default: Date.now, // Set the default to the current date when the document is created
+    },
     data: {
         type: Object,
+        required: true,
+    },
+    userIp: {
+        type: String,
         required: true,
     },
     walletAddress: [
