@@ -8,7 +8,7 @@ const Wallet = require('./models/wallet.js');  // Adjust the path if necessary
 // Import functions
 const { encrypt, decrypt } = require('./functions/encryption');
 const { generateWalletAddress } = require('./functions/walletGeneration');
-const { minuteRateLimiter } = require('./functions/rateLimiter');
+// const { minuteRateLimiter } = require('./functions/rateLimiter');
 
 const app = express();
 require("dotenv").config();
