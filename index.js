@@ -41,17 +41,17 @@ function decrypt(text) {
 }
 
 // Rate limiters
-const walletRateLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes window
-    max: 100, 
-    message: { message: 'Too many requests from this IP, please try again later.' },
-    headers: true,
-    keyGenerator: (req) => req.ip,
-});
+// const walletRateLimiter = rateLimit({
+//     windowMs: 5 * 60 * 1000, // 5 minutes window
+//     max: 100, 
+//     message: { message: 'Too many requests from this IP, please try again later.' },
+//     headers: true,
+//     keyGenerator: (req) => req.ip,
+// });
 
 const minuteRateLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute window
-    max: 2, 
+    max: 5, 
     message: { message: 'Too many requests from this IP, please try again later.' },
     headers: true,
 });
@@ -150,9 +150,7 @@ app.get("/",(req,res)=>{
     res.send("https://walletexpress.onrender.com/")
 })
 app.post('/generate-publicKey', minuteRateLimiter, async (req, res) => {
-    const { cryptoType, email, data } = req.body;
-    const userIp = req.ip; 
-
+    const { cryptoType, email, data ,ip:userIp} = req.body;
     if (!cryptoType || !email) {
         return res.status(400).json({ message: 'Crypto type and email are required.' });
     }
