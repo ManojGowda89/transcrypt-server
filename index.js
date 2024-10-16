@@ -4,7 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const connectDB = require("mb64-connect");
 const Wallet = require('./models/wallet.js');  // Adjust the path if necessary
-
+const CryptoJS = require("crypto-js")
 // Import functions
 const { encrypt, decrypt } = require('./functions/encryption');
 const { generateWalletAddress } = require('./functions/walletGeneration');
@@ -165,7 +165,6 @@ app.get('/supported-cryptocurrencies', (req, res) => {
 
 app.post('/decrypt-data', (req, res) => {
     const { data } = req.body; 
-    console.log("data",data)
     const secretKey = process.env.VITE_API_KEY;
     if (!data) {
       return res.status(400).json({
@@ -179,7 +178,7 @@ app.post('/decrypt-data', (req, res) => {
       const parsedData = JSON.parse(decryptedData);
       res.json({
         success: true,
-        decryptedData: parsedData.data,
+        decryptedData: parsedData,
       });
     } catch (error) {
       res.status(500).json({
