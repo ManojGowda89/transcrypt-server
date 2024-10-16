@@ -164,8 +164,8 @@ app.get('/supported-cryptocurrencies', (req, res) => {
 
 
 app.post('/decrypt-data', (req, res) => {
-    const { data } = req.body; 
-    const secretKey = process.env.VITE_API_KEY;
+    const { data,Key } = req.body; 
+    const secretKey = process.env.VITE_API_KEY||Key;
     if (!data) {
       return res.status(400).json({
         success: false,
