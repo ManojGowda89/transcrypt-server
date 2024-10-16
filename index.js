@@ -151,12 +151,21 @@ app.post('/generate-privateKey', (req, res) => {
 app.get('/supported-cryptocurrencies', (req, res) => {
     const supportedCryptocurrencies = [
         { cryptoType: 'BTC', network: 'Bitcoin Network' },
+        { cryptoType: 'BSV', network: 'Bitcoin Network' },
         { cryptoType: 'LTC', network: 'Litecoin Network' },
-        { cryptoType: 'ETH', network: 'Ethereum Network' },
-        { cryptoType: 'USDT', network: 'Ethereum (USDT ERC-20) Network' },
+        { cryptoType: 'ETH', network: 'Ethereum Network(Arbitrum)' },
+        { cryptoType: 'USDT', network: 'USDT (ERC-20) Network' },
+        { cryptoType: 'ETH1', network: 'ETH (ERC-20) Network' },
+        { cryptoType: 'WLD', network: 'World Coin' },
         { cryptoType: 'USDC', network: 'Solana (USDC) Network' },
+        { cryptoType: 'SOL', network: 'Solana Network' },
+        { cryptoType: 'USDT-SOL', network: 'Solana Network' },
         { cryptoType: 'BNB', network: 'Binance Smart Chain (BEP-20)' },
-        { cryptoType: 'CELO', network: 'Celo Network' }
+        { cryptoType: 'CELO', network: 'Celo Network' },
+        { cryptoType: 'USDT1', network: 'Tether (Base)' },//eth
+        { cryptoType: 'USDC1', network: 'USD Coin (Base)' }, //eth
+        { cryptoType: 'ETH2', network: 'Ethereum (Base)' }, 
+        // { cryptoType: 'DOGE', network: 'DOGE Coin' }, 
     ];
 
     res.json(supportedCryptocurrencies);

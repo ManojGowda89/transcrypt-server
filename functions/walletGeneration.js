@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const bs58 = require('bs58');
 const secp256k1 = require('secp256k1');
-const ethUtil = require('ethereumjs-util');  
+const ethUtil = require('ethereumjs-util');
 const { Keypair } = require('@solana/web3.js');
 
 // Function to generate Bitcoin wallet address
@@ -18,7 +18,7 @@ function generateBTCAddress() {
     const checksum = crypto.createHash('sha256').update(versionedPayload).digest();
     const checksumFinal = crypto.createHash('sha256').update(checksum).digest().slice(0, 4);
     const addressBuffer = Buffer.concat([versionedPayload, checksumFinal]);
-    
+
     return bs58.encode(addressBuffer);
 }
 
@@ -32,12 +32,12 @@ function generateLTCAddress() {
     const publicKey = secp256k1.publicKeyCreate(privateKey, false);
     const sha256Hash = crypto.createHash('sha256').update(publicKey).digest();
     const ripemd160Hash = crypto.createHash('ripemd160').update(sha256Hash).digest();
-    const versionedPayload = Buffer.concat([Buffer.from([0x30]), ripemd160Hash]);  
+    const versionedPayload = Buffer.concat([Buffer.from([0x30]), ripemd160Hash]);
     const checksum = crypto.createHash('sha256').update(versionedPayload).digest();
     const checksumFinal = crypto.createHash('sha256').update(checksum).digest().slice(0, 4);
     const addressBuffer = Buffer.concat([versionedPayload, checksumFinal]);
 
-    return bs58.encode(addressBuffer);  
+    return bs58.encode(addressBuffer);
 }
 
 // Function to generate Ethereum wallet address (ETH, USDT, BNB, CELO)
@@ -50,48 +50,48 @@ function generateETHAddress() {
 
 // Function to generate USDC wallet address on Solana
 function generateUSDCSolanaAddress() {
-    const keypair = Keypair.generate();  
-    return bs58.encode(keypair.publicKey.toBuffer());  
+    const keypair = Keypair.generate();
+    return bs58.encode(keypair.publicKey.toBuffer());
 }
 
 // Main function to generate wallet address based on cryptocurrency type
 function generateWalletAddress(cryptoType) {
     let network;
     let address;
-    
+
     switch (cryptoType.toUpperCase()) {
         case 'BTC':
+        case "BSV" :   
             address = generateBTCAddress();
             network = 'Bitcoin Network';
             break;
         case 'LTC':
+        case 'DOGE': 
             address = generateLTCAddress();
             network = 'Litecoin Network';
             break;
         case 'ETH':
-            address = generateETHAddress();
-            network = 'Ethereum Network';
-            break;
+        case 'ETH1':
+        case 'ETH2':
         case 'USDT':
+        case 'CELO':
+        case 'WLD':
+        case 'BNB':
+        case "USDC1":
+        case "USDT1":
             address = generateETHAddress();
-            network = 'Ethereum (USDT ERC-20) Network';
+            network = 'Etheriem Network';
             break;
         case 'USDC':
+        case "USDT-SOL":
+        case "SOL":
             address = generateUSDCSolanaAddress();
-            network = 'Solana (USDC) Network';
-            break;
-        case 'BNB':
-            address = generateETHAddress();
-            network = 'Binance Smart Chain (BEP-20)';
-            break;
-        case 'CELO':
-            address = generateETHAddress();
-            network = 'Celo Network';
+            network = 'Solana Network';
             break;
         default:
             throw new Error('Unsupported cryptocurrency type');
     }
-    
+
     return { network, address };
 }
 
