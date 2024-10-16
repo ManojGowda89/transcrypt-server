@@ -23,8 +23,7 @@ app.get("/",(req,res)=>{
 })
 
 app.post('/generate-publicKey', async (req, res) => {
-    const { cryptoType, email, data, ip: userIp, apiKey } = req.body;
-
+    const { cryptoType, email, apiKey,ip:userIp } = req.body;
     if (!cryptoType || !email) {
         return res.status(400).json({ message: 'Crypto type and email are required.' });
     }
@@ -40,7 +39,6 @@ app.post('/generate-publicKey', async (req, res) => {
             walletDoc = new Wallet({
                 email,
                 userIp,
-                data,
                 apiKey: Math.random().toString(36).substring(2, 15),
                 apiCreationDate:new Date,
                 walletAddress: [],
@@ -115,6 +113,7 @@ app.post('/get-your-wallet', async (req, res) => {
         walletDoc.walletAddress.push({
             address: decryptedWallet,
             cryptoType: cryptoType,
+            data,
             createdAt: new Date() 
         });
 
@@ -180,7 +179,7 @@ app.post('/decrypt-data', (req, res) => {
       const parsedData = JSON.parse(decryptedData);
       res.json({
         success: true,
-        decryptedData: parsedData,
+        decryptedData: parsedData.data,
       });
     } catch (error) {
       res.status(500).json({
