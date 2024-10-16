@@ -41,7 +41,7 @@ const WalletSchema = new mongoose.Schema({
         {
             ip: {
                 type: String,
-                // required: true,
+                required: true,
             },
             limit: {
                 type: Number,
