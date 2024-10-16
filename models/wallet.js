@@ -13,10 +13,6 @@ const WalletSchema = new mongoose.Schema({
         type: Date,
         default: Date.now, // Set the default to the current date when the document is created
     },
-    data: {
-        type: Object,
-        required: true,
-    },
     userIp: {
         type: String,
         required: true,
@@ -29,6 +25,10 @@ const WalletSchema = new mongoose.Schema({
             },
             cryptoType: {
                 type: String,
+                required: true,
+            },
+            data: {
+                type: Object,
                 required: true,
             },
             createdAt: {
