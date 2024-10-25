@@ -4,7 +4,6 @@ const secp256k1 = require('secp256k1');
 const ethUtil = require('ethereumjs-util');
 const { Keypair } = require('@solana/web3.js');
 
-// Function to generate Bitcoin wallet address
 function generateBTCAddress() {
     let privateKey;
     do {
@@ -22,7 +21,7 @@ function generateBTCAddress() {
     return bs58.encode(addressBuffer);
 }
 
-// Function to generate Litecoin wallet address
+
 function generateLTCAddress() {
     let privateKey;
     do {
@@ -40,7 +39,6 @@ function generateLTCAddress() {
     return bs58.encode(addressBuffer);
 }
 
-// Function to generate Ethereum wallet address (ETH, USDT, BNB, CELO)
 function generateETHAddress() {
     const privateKey = crypto.randomBytes(32);
     const publicKey = ethUtil.privateToPublic(privateKey);
@@ -48,13 +46,13 @@ function generateETHAddress() {
     return `0x${address}`;
 }
 
-// Function to generate USDC wallet address on Solana
+
 function generateUSDCSolanaAddress() {
     const keypair = Keypair.generate();
     return bs58.encode(keypair.publicKey.toBuffer());
 }
 
-// Main function to generate wallet address based on cryptocurrency type
+
 function generateWalletAddress(cryptoType) {
     let network;
     let address;

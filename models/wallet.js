@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
+const connectDB= require("mb64-connect");
 
-const WalletSchema = new mongoose.Schema({
+const walletSchema = {
     email: {
         type: String,
         required: true,
@@ -11,7 +11,7 @@ const WalletSchema = new mongoose.Schema({
     },
     apiCreationDate: {
         type: Date,
-        default: Date.now, // Set the default to the current date when the document is created
+        default: Date.now,
     },
     userIp: {
         type: String,
@@ -45,11 +45,12 @@ const WalletSchema = new mongoose.Schema({
             },
             limit: {
                 type: Number,
-                default: 20, // Default limit for each IP
+                default: 20,
             },
         },
     ],
-}, { timestamps: true });
+};
 
-const Wallet = mongoose.model('Wallet', WalletSchema);
+const Wallet = connectDB.validation("Wallet", walletSchema, true);
+
 module.exports = Wallet;
